@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-
+using System.Runtime.CompilerServices;
 
 AppFabricacion app = new AppFabricacion(); 
 app.ejecutar();
@@ -78,11 +78,13 @@ internal class AppFabricacion
         List<ItemDeOrden> itemsDeOrden = new List<ItemDeOrden>(); // AL CREAR LIST DEBE TENER EL TIPO DE CONTENIDO
         bool deseaSeguirAgregandoArticulos = false;
         bool ordenTieneItemsDeFabricacionYConsumo = false;
+        OrdenDeFabricacion ordenNueva;
+
 
         numero = validador.PedirInt("ingresar numero de orden", 1, 9999);
         tipoDeOrden = validador.PedirTipoDeOrden("ingresar 'sp' (sobre pedido) o 'ps' (para stock)");
 
-        ordenExiste = ordenes.Contains(new OrdenDeFabricacion(numero, "", ""));
+        ordenExiste = ordenes.Contains(new OrdenDeFabricacion(numero, "", "", new List<ItemDeOrden>()));
 
         if (ordenExiste)
         {
@@ -93,10 +95,10 @@ internal class AppFabricacion
             do
             {
                 string codigoArticulo = validador.PedirStringNoVacio("ingresar codigo de articulo");
-                string aFabricarOAConsumir = validador.PedirAFabricarOAConsumir("ingresar 'af' o 'ac'");
                 cantidad = validador.PedirInt("ingresar cantidad", 1, 9999);
 
                 articuloExiste = articulos.Contains(new Articulo(codigoArticulo, ""));
+                Articulo articulo = articulos.Find(articuloABuscar => articuloABuscar.Equals(new Articulo(codigoArticulo, "")));
 
                 if (!articuloExiste)
                 {
@@ -104,18 +106,23 @@ internal class AppFabricacion
                 }
                 else
                 {
-                    if (aFabricarOAConsumir == "af")
+                    if (articulo is ProductoTerminado)
                     {
-                        itemsDeOrden.Add(new ItemDeOrden(cantidad, new Articulo(codigoArticulo), new List<Movimiento>(new Fabricacion())));
+                        itemsDeOrden.Add(new ItemDeOrden(cantidad, new ProductoTerminado(codigoArticulo), new List<Movimiento>()));
                     }
-                    else
+                    else if (articulo is Insumo)
                     {
-                        itemsDeOrden.Add(new ItemDeOrden(cantidad, new Articulo(codigoArticulo), new List<Movimiento>(new Consumo())));
+                        itemsDeOrden.Add(new ItemDeOrden(cantidad, new Insumo(codigoArticulo), new List<Movimiento>()));
+                    } else
+                    {
+                        itemsDeOrden.Add(new ItemDeOrden(cantidad, new MateriaPrima(codigoArticulo), new List<Movimiento>()));
                     }
                 }
-                
+
+                ordenNueva = new OrdenDeFabricacion(numero, fecha, tipoDeOrden, itemsDeOrden);
+
                 deseaSeguirAgregandoArticulos = validador.PedirSiONo("desea seguir agregando articulos? indique 's' o 'n'");
-                ordenTieneItemsDeFabricacionYConsumo = validador.OrdenTieneItemsDeFabricacionYConsumo();
+                ordenTieneItemsDeFabricacionYConsumo = ordenNueva.OrdenTieneItemsDeFabricacionYConsumo();
 
                 if (!deseaSeguirAgregandoArticulos && !ordenTieneItemsDeFabricacionYConsumo)
                 {
@@ -124,7 +131,7 @@ internal class AppFabricacion
 
             } while (deseaSeguirAgregandoArticulos || !ordenTieneItemsDeFabricacionYConsumo);
 
-            ordenes.Add(new OrdenDeFabricacion(numero, fecha, tipoDeOrden, itemsDeOrden);
+            ordenes.Add(ordenNueva);
         }
     }
 
@@ -247,12 +254,142 @@ class Articulo
     }
 }
 
-// Me canse. Faltan cosas pero ya quiero pasar a otro ejercicio.
-// FALTA: hacer las clases de OrdenDeFabricacion y ItemDeOrden, el metodo OrdenTieneItemsDeFabricacionYConsumo(),
-// VerificarSiOrdenEstaPendiente() y GetNumero() que deberian estar en OrdenDeFabricacion, y refactorizar la parte
-// en que decide si un articulo es a fabricar o a consumir. Me di cuenta despues de programarlo que habia entendido
-// mal la consigna, y que probablemente eso dependa de si el articulo es una MateriaPrima, Insumo o ProductoTerminado.
-// Entonces la parte de VerificarSiOrdenEstaPendiente() revisaria la cantidad del articulo dentro del ItemDeOrden para
-// ver la cantidad a fabricar, y contaria los movimientos de Fabricacion de ese ItemDeOrden para saber si esta pendiente.
-// Para verificar si OrdenTieneItemsDeFabricacionYConsumo(), ahi deberia crear una OrdenDeFabricacion para usar el 
-// metodo, y despues agregarla a la lista de ordenes.
+class ItemDeOrden
+{
+    private int cantidad;
+    private Articulo articulo;
+    private List<Movimiento> movimientos;
+
+    public ItemDeOrden(int cantidad, Articulo articulo, List<Movimiento> movimientos)
+    {
+        this.cantidad = cantidad;
+        this.articulo = articulo;
+        this.movimientos = movimientos;
+    }
+
+    public int GetCantidad()
+    {
+        return this.cantidad;
+    }
+
+    public Articulo GetArticulo()
+    {
+        return articulo;
+    }
+
+    public List<Movimiento> GetMovimientos()
+    {
+        return movimientos;
+    }
+}
+
+class OrdenDeFabricacion
+{
+    private int numero;
+    private string fecha;
+    private string tipoDeOrden;
+    private List<ItemDeOrden> itemsDeOrden;
+
+    public OrdenDeFabricacion(int numero, string fecha, string tipoDeOrden, List<ItemDeOrden> itemsDeOrden)
+    {
+        this.numero = numero;  
+        this.fecha = fecha;
+        this.tipoDeOrden = tipoDeOrden;
+        this.itemsDeOrden = itemsDeOrden;
+    }
+
+    public int GetNumero()
+    {
+        return numero;
+    }
+
+    public string GetFecha()
+    {
+        return fecha;
+    }
+
+    public string GetTipoDeOrden()
+    {
+        return tipoDeOrden;
+    }
+
+    public override bool Equals(object obj)
+    {
+        if (obj != null)
+        {
+            if (obj is OrdenDeFabricacion)
+            {
+                return (obj as OrdenDeFabricacion).numero == this.numero;
+            }
+        }
+        return false;
+    }
+
+    public bool OrdenTieneItemsDeFabricacionYConsumo()
+    {
+        if (itemsDeOrden.Find(x => x.GetArticulo() is ProductoTerminado) is ItemDeOrden &&
+            (itemsDeOrden.Find(x => x.GetArticulo() is Insumo) is ItemDeOrden ||
+            itemsDeOrden.Find(x => x.GetArticulo() is MateriaPrima) is ItemDeOrden))
+        {
+            return true;
+        } else
+        {
+            return false;
+        }
+    }
+
+    public bool VerificarSiOrdenEstaPendiente()
+    {
+        int cantidadMovimientosFabricacion = 0;
+        int cantidadAFabricar = 0;
+        List<Movimiento> movimientos;
+
+        for (int i = 0; i < itemsDeOrden.Count; i++)
+        {
+            movimientos = itemsDeOrden[i].GetMovimientos();
+            cantidadMovimientosFabricacion += movimientos.GetMovimientosFabricacion().Count;
+            cantidadAFabricar += itemsDeOrden[i].GetCantidad();
+        } 
+        
+        if (cantidadMovimientosFabricacion == cantidadAFabricar)
+        {
+            return false;
+        } else
+        {
+            return true;
+        }
+    }
+}
+
+interface Movimiento
+{
+    
+}
+
+class ProductoTerminado : Articulo
+{
+    private string codigo;
+    public ProductoTerminado(string codigo) : base(codigo)
+    {
+        this.codigo = codigo;
+    }
+}
+
+class Insumo : Articulo
+{
+    private string codigo;
+    public Insumo(string codigo) : base(codigo)
+    {
+        this.codigo = codigo;
+    }
+}
+
+class MateriaPrima : Articulo
+{
+    private string codigo;
+    public MateriaPrima(string codigo) : base(codigo)
+    {
+        this.codigo = codigo;
+    }
+}
+
