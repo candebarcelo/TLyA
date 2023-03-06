@@ -254,7 +254,7 @@ class Turno
             bool disponible = !mesas[i].GetReservada();
             int capacidad = mesas[i].GetCapacidad();
             if (disponible && capacidad >= comensales && ((comensales > capacidad / 2) || comensales == 1 && capacidad == 2))
-            { // PARA 1 COMENSAL SALIAN TODAS LAS MENSAS XQ NO HABIA PUESTO CAPACIDAD == 2
+            { // PARA 1 COMENSAL SALIAN TODAS LAS MESAS XQ NO HABIA PUESTO CAPACIDAD == 2
                 mesasDisponibles.Add(mesas[i]);
             }
         }
@@ -410,7 +410,6 @@ class Validador
     public Mesa PedirMesa(string mensaje, Turno turno, List<Mesa> mesasDisponibles) // ME OLVIDE DE HACER ESTE METODO
     {
         Mesa retorno;
-        //List<Mesa> listaDeMesas = turno.GetMesas();
         List<int> numerosDeMesa = new List<int>();
         mesasDisponibles.ForEach(mesa =>
         {
